@@ -36,8 +36,13 @@ def sound(name):
     return sound
 
 def error_log(s): open('error_log.txt',"a").write(s+'\n')
+def print_now(*args):
+    for a in args: print a,
+    print
+    sys.stdout.flush()
 
 os.chdir(sys.argv[0][0:sys.argv[0].rfind("\\")]) #Ensure right folder
+os.chdir('..')
 pygame.init()
 screen = pygame.display.set_mode((700, 500))
 screenSize = screen.get_size()

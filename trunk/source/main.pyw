@@ -1,17 +1,25 @@
 #!/usr/bin/env python
 # James Stevenson
-VERSION = "0.02"
+VERSION = "0.03"
 
 from resource import *
 from classes import *
 
-world = Map(100,100)
-for i in range(3):
-    startx, starty, endx, endy = 1,2,random.randint(0,100),random.randint(0,100)
+random.seed(2)
+world = Map(50,50)
+storedWorld = None
+import time
+startTime = time.clock()
+for i in range(0):
+    startx, starty, endx, endy = 1,7,random.randint(0,49),random.randint(0,49)
+    #pygame.draw.line(world.image, (0,0,255), (startx*Map.size,starty*Map.size), (endx*Map.size,endy*Map.size) )
+    path = []
     path = world.shortestPath(startx, starty, endx, endy)
-    for i in range(len(path)-1):
-	x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
-	pygame.draw.line(world.image, (0,0,255), (x*Map.size,y*Map.size), (dx*Map.size,dy*Map.size) )
+    if path is not None:
+	for i in range(len(path)-1):
+	    x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
+	    pygame.draw.line(world.image, (0,2*i,255-2*i), (x*Map.size+Map.size/2,y*Map.size+Map.size/2), (dx*Map.size+Map.size/2,dy*Map.size+Map.size/2) )
+print time.clock()-startTime
 
 background = pygame.Surface( (world.w, world.h) ).convert()
 background.fill((0,0,0))
@@ -37,7 +45,7 @@ def mainLoop():
         time = clock.tick(40)
         if len(pygame.event.get(QUIT)): return
         for event in pygame.event.get(MOUSEBUTTONDOWN):
-            pass
+            world.mouse(event,offset)
         pygame.event.clear() #Get only what you want, clear the rest
         
         mousex,mousey = pygame.mouse.get_pos()

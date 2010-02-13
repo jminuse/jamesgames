@@ -70,7 +70,7 @@ class Map():
     size = 32 #size of a grid square
     class Empty: cost = 1
     class Object():
-        cost = 1e6
+        cost = None
         def __init__(self, imageName, w=1, h=1):
             self.w, self.h = w,h
             self.image, self.rect = image(imageName, (w*Map.size, h*Map.size) ) #Image, bounding box
@@ -87,25 +87,28 @@ class Map():
         def __init__(self, imageName='asteroid1.png'):
             Map.Object.__init__(self, imageName, 2, 1)
     class Factory(Object):
-        def __init__(self, imageName='ship6.png'):
+        def __init__(self, imageName='ships\ship6.png'):
             Map.Object.__init__(self, imageName, 1, 1)
     class Colony(Object):
         pass
     class Pointer(): #Points to another square on the map
-        cost = 1e6
+        cost = None
         def __init__(self, x, y):
             self.x=x; self.y=y
     
     def __init__(self, w=3, h=3):
         self.w = w; self.h = h
         Map.pixw, Map.pixh = w*Map.size, h*Map.size
-        self.heroes = []
+        self.heroes = { 'Crag Hack':Hero()  }
         self.possibleHeroes = []
+	self.possibleShips = []
+	self.possibleBuildings = []
         self.randomMap()
         self.setBackground()
         self.renderImage()
     def display(self, surface, size, offset):
         surface.blit(self.image, (0,0), (offset[0],offset[1],size[0],size[1]) )
+	for name in self.heroes: self.heroes[name].display(surface,offset)
     def setBackground(self):
         self.background = pygame.Surface((Map.pixw,Map.pixh)).convert()
         self.background.fill((5,0,10))
@@ -122,6 +125,7 @@ class Map():
             for y,item in enumerate(list):
                 if item.__class__ is not Map.Empty and item.__class__ is not Map.Pointer:
                     self.image.blit(item.image, (x*Map.size, y*Map.size))
+		pygame.draw.rect(self.image, (0,100,0), (x*Map.size, y*Map.size, Map.size, Map.size), 1)
                 #if item.__class__ is Map.Pointer:
                 #    pygame.draw.rect(self.image, (0,200,0), (x*Map.size, y*Map.size, Map.size, Map.size), 1)
                 #    pygame.draw.line(self.image, (255,0,0), (x*Map.size+Map.size/2, y*Map.size+Map.size/2), (item.x*Map.size+Map.size/2, item.y*Map.size+Map.size/2), 1)
@@ -129,9 +133,9 @@ class Map():
     def randomMap(self):
         self.grid = [[Map.Empty() for y in xrange(self.h)] for x in xrange(self.w)]
         self.backtiles = [[Map.Empty() for y in xrange(self.h)] for x in xrange(self.w)]
-        planets = 0; planetCount = 10
-        asteroids = 0; asteroidCount = 400
-        factories = 0; factoryCount = 100
+        planets = 0; planetCount = 3
+        asteroids = 0; asteroidCount = 100
+        factories = 0; factoryCount = 20
         while True:
             if planets < planetCount: object = Map.Planet(); planets+=1
             elif asteroids < asteroidCount: object = Map.Asteroid(); asteroids+=1
@@ -154,43 +158,62 @@ class Map():
                     if self.grid[x][y].__class__ is not Map.Empty: areaFree = False
             if areaFree: return rx,ry
     def shortestPath(self,x,y,dx,dy):
-        tested = []
-	untested = [(x,y)]
+	if self.grid[x][y].cost is None or self.grid[dx][dy].cost is None: return None
+        tested = set()
+	untested = set((x,y))
 	came_from = {}
 	optimalCost = { (x,y) : 0 }
 	def distance(a,b,c,d): xDif = abs(a-c); yDif = abs(b-d); larger = max(xDif,yDif); smaller = min(xDif,yDif); return smaller*2**0.5+(larger-smaller)
 	approxCost = { (x,y) : distance(x,y,dx,dy) }
-	approxCostThroughPoint = Map.PriorityDict(); approxCostThroughPoint.push((x,y), approxCost[(x,y)])
-	while len(approxCostThroughPoint.heap) > 0:
-	    test,cost = approxCostThroughPoint.pop()
+	approxCostThroughPoint = Map.PriorityDict(); approxCostThroughPoint[(x,y)] = approxCost[(x,y)]
+	while len(approxCostThroughPoint) > 0:
+	    test = approxCostThroughPoint.pop()
 	    if test == (dx,dy): #Success!
 		path = []
 		while test != (x,y): path.append(test); test = came_from[test]
 		return path
-	    tested.append(test)
+	    tested.add(test)
 	    for sx in range(max(test[0]-1,0),min(test[0]+2,self.w)):
-		for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested)]:
+		for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested or self.grid[sx][j].cost==None)]:
 		    tentative_cost = optimalCost[test]
 		    if sx==test[0] or sy==test[1]: tentative_cost += self.grid[sx][sy].cost #Not diagonal
 		    else: tentative_cost += self.grid[sx][sy].cost * 2**0.5 #Diagonal
 		    isBetter = False
-		    if (sx,sy) not in untested: untested.append((sx,sy)); isBetter = True
+		    if (sx,sy) not in untested: untested.add((sx,sy)); isBetter = True
 		    elif tentative_cost < optimalCost[(sx,sy)]: isBetter = True
 		    if isBetter:
 			came_from[(sx,sy)] = test
 			optimalCost[ (sx,sy) ] = tentative_cost
 			approxCost[ (sx,sy) ] = distance(sx,sy,dx,dy)
-			approxCostThroughPoint.push( (sx,sy), optimalCost[(sx,sy)]+approxCost[(sx,sy)] )
-	return 'FFF'
-		    
-    class PriorityDict():
+			approxCostThroughPoint[(sx,sy)] = optimalCost[(sx,sy)]+approxCost[(sx,sy)]
+	return None #If no path is found	    
+    class PriorityDict(dict):
 	def __init__(self): self.heap = []
-	def push(self, item, priority): heapq.heappush(self.heap, [priority, item])
-	def pop(self): priority,item = heapq.heappop(self.heap); return item,priority
-    
+	def pop(self):
+	    smallest = min(self,key=self.__getitem__)
+	    del self[smallest]
+	    return smallest
+    def mouse(self, event, offset):
+	x,y = (event.pos[0]+offset[0])/Map.size, (event.pos[1]+offset[1])/Map.size
+	hero = self.heroes['Crag Hack']
+	path = self.shortestPath(hero.x,hero.y, x,y)
+	if path is not None:
+	    cost = sum([self.grid[p[0]][p[1]].cost for p in path])
+	    if hero.movementPoints >= cost:
+		hero.movementPoints -= cost
+		hero.x, hero.y = x,y
+	    print_now('cost:', cost)
+	    
+
 class Hero():
-    def __init__(self, imageName):
-        self.image, self.rect = image(imageName) #Image, bounding box
+    def __init__(self, name='Crag Hack', x=0, y=0):
+        self.image, self.rect = image(os.path.join('heroes',name.replace(' ','_')+'.png')) #Image, bounding box
+	self.x, self.y = x,y
+	self.fleet = {}
+	self.maxMovement = 25
+	self.movementPoints = self.maxMovement
+    def display(self, surface, offset):
+	surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
 
 class Player():
     def __init__(self, type):
