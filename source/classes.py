@@ -170,12 +170,12 @@ class Map():
 	    tested.append(test)
 	    for sx in range(max(test[0]-1,0),min(test[0]+2,self.w)):
 		for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested)]:
-		    tentative_cost = optimalCost.get(test)
+		    tentative_cost = optimalCost[test]
 		    if sx==test[0] or sy==test[1]: tentative_cost += self.grid[sx][sy].cost #Not diagonal
 		    else: tentative_cost += self.grid[sx][sy].cost * 2**0.5 #Diagonal
 		    isBetter = False
 		    if (sx,sy) not in untested: untested.append((sx,sy)); isBetter = True
-		    elif tentative_cost < optimalCost.get((sx,sy)): isBetter = True
+		    elif tentative_cost < optimalCost[(sx,sy)]: isBetter = True
 		    if isBetter:
 			came_from[(sx,sy)] = test
 			optimalCost[ (sx,sy) ] = tentative_cost
@@ -184,10 +184,9 @@ class Map():
 	return 'FFF'
 		    
     class PriorityDict():
-	def __init__(self): self.heap = []; self.dict = {}
-	def push(self, item, priority): heapq.heappush(self.heap, (priority, item)); self.dict[item] = priority
-	def pop(self): priority,item = heapq.heappop(self.heap); self.dict.pop(item); return item,priority
-	def get(self, item): return self.dict[item]
+	def __init__(self): self.heap = []
+	def push(self, item, priority): heapq.heappush(self.heap, [priority, item])
+	def pop(self): priority,item = heapq.heappop(self.heap); return item,priority
     
 class Hero():
     def __init__(self, imageName):

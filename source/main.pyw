@@ -6,11 +6,12 @@ from resource import *
 from classes import *
 
 world = Map(100,100)
-startx, starty, endx, endy = 1,2,30,40
-path = world.shortestPath(startx, starty, endx, endy)
-for i in range(len(path)-1):
-    x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
-    pygame.draw.line(world.image, (0,0,255), (x*Map.size,y*Map.size), (dx*Map.size,dy*Map.size) )
+for i in range(3):
+    startx, starty, endx, endy = 1,2,random.randint(0,100),random.randint(0,100)
+    path = world.shortestPath(startx, starty, endx, endy)
+    for i in range(len(path)-1):
+	x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
+	pygame.draw.line(world.image, (0,0,255), (x*Map.size,y*Map.size), (dx*Map.size,dy*Map.size) )
 
 background = pygame.Surface( (world.w, world.h) ).convert()
 background.fill((0,0,0))
