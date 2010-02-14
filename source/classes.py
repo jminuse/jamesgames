@@ -99,16 +99,19 @@ class Map():
     def __init__(self, w=3, h=3):
         self.w = w; self.h = h
         Map.pixw, Map.pixh = w*Map.size, h*Map.size
-        self.heroes = { 'Crag Hack':Hero()  }
-        self.possibleHeroes = []
+	self.possibleHeroes = [ Hero(data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
 	self.possibleShips = []
 	self.possibleBuildings = []
+	self.players = [ Player(self, "Quack") ]
+	self.whoseTurn = 0
+	self.selectedHero = self.players[self.whoseTurn].heroes[0]
         self.randomMap()
         self.setBackground()
         self.renderImage()
     def display(self, surface, size, offset):
         surface.blit(self.image, (0,0), (offset[0],offset[1],size[0],size[1]) )
-	for name in self.heroes: self.heroes[name].display(surface,offset)
+	for player in self.players:
+	    for hero in player.heroes: hero.display(surface,offset)	
     def setBackground(self):
         self.background = pygame.Surface((Map.pixw,Map.pixh)).convert()
         self.background.fill((5,0,10))
@@ -195,30 +198,32 @@ class Map():
 	    return smallest
     def mouse(self, event, offset):
 	x,y = (event.pos[0]+offset[0])/Map.size, (event.pos[1]+offset[1])/Map.size
-	hero = self.heroes['Crag Hack']
+	hero = self.selectedHero
 	path = self.shortestPath(hero.x,hero.y, x,y)
 	if path is not None:
 	    cost = sum([self.grid[p[0]][p[1]].cost for p in path])
+	    print_now(hero.movementPoints)
 	    if hero.movementPoints >= cost:
 		hero.movementPoints -= cost
 		hero.x, hero.y = x,y
-	    print_now('cost:', cost)
-	    
 
 class Hero():
-    def __init__(self, name='Crag Hack', x=0, y=0):
-        self.image, self.rect = image(os.path.join('heroes',name.replace(' ','_')+'.png')) #Image, bounding box
-	self.x, self.y = x,y
-	self.fleet = {}
-	self.maxMovement = 25
-	self.movementPoints = self.maxMovement
+    def __init__(self, data):
+	self.name = data[0]
+	self.specialty = data[1]
+	self.attack, self.defense, self.knowledge, self.power, self.speed = [int(i) for i in data[2].split(',')]
+        self.image, self.rect = image(os.path.join('heroes',self.name.replace(' ','_')+'.png'))
+	self.x, self.y = 0,0
+	self.movementPoints = self.speed
+	self.fleet = { 'snub': int(data[3]) }
     def display(self, surface, offset):
 	surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
 
 class Player():
-    def __init__(self, type):
+    def __init__(self, map, type):
+	self.map = map
         self.money = 0
         self.energy = 0
         self.ore = 0
         self.type = type
-        self.heroes = []
+        self.heroes = [ map.possibleHeroes.pop() ]
