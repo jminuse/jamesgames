@@ -19,7 +19,7 @@ for i in range(0):
 	for i in range(len(path)-1):
 	    x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
 	    pygame.draw.line(world.image, (0,2*i,255-2*i), (x*Map.size+Map.size/2,y*Map.size+Map.size/2), (dx*Map.size+Map.size/2,dy*Map.size+Map.size/2) )
-print time.clock()-startTime
+#print time.clock()-startTime
 
 background = pygame.Surface( (world.w, world.h) ).convert()
 background.fill((0,0,0))
