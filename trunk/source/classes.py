@@ -38,16 +38,10 @@ class Battle():
             return False
             
     class Ship(Mass):
-        def __init__(self, world):
-            Mass.__init__(self, world, imageName='ship.png')
+        def __init__(self, data):
+            Battle.Mass.__init__(self, None, imageName=os.path.join('ships',data[0].replace(' ','_')+'.png'))
             self.thrust = 0
-            self.maxThrust = 1
-        def update(self, time):
-            Mass.update(self, time)
-    
-    class SpaceRock(Mass):
-        def __init__(self):
-            Mass.__init__(self)
+            self.mass, self.maxThrust = [float(i) for i in data[1].split(',')]
         def update(self, time):
             Mass.update(self, time)
         
@@ -86,11 +80,9 @@ class Map():
     class Asteroid(Object):
         def __init__(self, imageName='asteroid1.png'):
             Map.Object.__init__(self, imageName, 2, 1)
-    class Factory(Object):
-        def __init__(self, imageName='ships\ship6.png'):
-            Map.Object.__init__(self, imageName, 1, 1)
-    class Colony(Object):
-        pass
+    class Building(Object):
+	def __init__(self, data):
+            Map.Object.__init__(self, os.path.join('buildings',data[0]+'.png'), 1, 1)
     class Pointer(): #Points to another square on the map
         cost = None
         def __init__(self, x, y):
@@ -99,9 +91,9 @@ class Map():
     def __init__(self, w=3, h=3):
         self.w = w; self.h = h
         Map.pixw, Map.pixh = w*Map.size, h*Map.size
-	self.possibleHeroes = [ Hero(data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
-	self.possibleShips = []
-	self.possibleBuildings = []
+	self.possibleHeroes = [Hero(data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
+	self.possibleShips = [Battle.Ship(data.splitlines()) for data in open('data/ships.txt').read().split('\n\n') if not data[0].startswith('#')]
+	self.possibleBuildings = [ Map.Building(data.splitlines()) for data in open('data/buildings.txt').read().split('\n\n') if not data[0].startswith('#')]
 	self.players = [ Player(self, "Quack") ]
 	self.whoseTurn = 0
 	self.selectedHero = self.players[self.whoseTurn].heroes[0]
@@ -138,11 +130,11 @@ class Map():
         self.backtiles = [[Map.Empty() for y in xrange(self.h)] for x in xrange(self.w)]
         planets = 0; planetCount = 3
         asteroids = 0; asteroidCount = 100
-        factories = 0; factoryCount = 20
+        buildings = 0; buildingCount = 20
         while True:
             if planets < planetCount: object = Map.Planet(); planets+=1
             elif asteroids < asteroidCount: object = Map.Asteroid(); asteroids+=1
-            elif factories < factoryCount: object = Map.Factory(); factories+=1
+            elif buildings < buildingCount: object = copy.copy(random.choice(self.possibleBuildings)); buildings+=1
             else: break
             freeArea = self.randomFreeArea(object.w, object.h)
             if freeArea is None: break
@@ -208,6 +200,7 @@ class Map():
 		hero.x, hero.y = x,y
 
 class Hero():
+    ranks = ('Petty Officer', 'Midshipman', 'Ensign', 'Lieutenant', 'Commander', 'Captain', 'Rear Admiral', 'Vice Admiral', 'Fleet Admiral', 'Grand Admiral', 'Stevenson-Level Awesomeness')
     def __init__(self, data):
 	self.name = data[0]
 	self.specialty = data[1]
@@ -216,6 +209,8 @@ class Hero():
 	self.x, self.y = 0,0
 	self.movementPoints = self.speed
 	self.fleet = { 'snub': int(data[3]) }
+	self.rankNumber = 0
+	self.experience = 0
     def display(self, surface, offset):
 	surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
 

@@ -1,4 +1,4 @@
-import sys, random, math, pygame, socket, heapq, os
+import sys, random, math, pygame, socket, heapq, os, copy
 from pygame.locals import *
 
 loaded_images = dict()
