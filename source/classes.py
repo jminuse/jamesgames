@@ -5,7 +5,8 @@ class Battle():
         def __init__(self, world, mass=1, angle=0, x=500, y=500, dx=0, dy=0, angle_velocity = 0, imageName='mass.png', poly=None):
             self.dx = dx; self.dy = dy #Velocity
             self.mass = mass; self.world = world #Mass, world
-            self.original_image, self.rect = image(imageName) #Image, bounding box
+            self.imageName = imageName #Image, bounding box
+	    self.image, self.rect = image(imageName)
             self.x = x; self.y = y
             if poly is None:
                 poly = ( (-self.rect.centerx, self.rect.centery), (-self.rect.centerx, -self.rect.centery),
@@ -24,8 +25,7 @@ class Battle():
             while self.angle<0: self.angle+=2*math.pi
             while self.angle>2*math.pi: self.angle-=2*math.pi
             self.poly = self.rotations[ int(len(self.rotations)*self.angle/(2*math.pi)) ]
-            self.image = pygame.transform.rotozoom(self.original_image, math.degrees(self.angle), 1).convert_alpha()
-            self.rect = self.image.get_rect()
+            self.image, self.rect = image(self.imageName, None, math.floor(math.degrees(self.angle)/10)*10 )
         def display(self, surface, offset=(0,0)):
             surface.blit(self.image, (self.x-self.rect.centerx-offset[0], self.y-self.rect.centery-offset[1]) )
         def contacts(self, x, y):
@@ -65,8 +65,8 @@ class Map():
     class Empty: cost = 1
     class Object():
         cost = None
-        def __init__(self, imageName, w=1, h=1):
-            self.w, self.h = w,h
+        def __init__(self, imageName, w=1, h=1, player=None):
+            self.w, self.h, self.player = w,h,player
             self.image, self.rect = image(imageName, (w*Map.size, h*Map.size) ) #Image, bounding box
     class AsteroidField(Object):
         cost = 2
@@ -83,8 +83,7 @@ class Map():
     class Building(Object):
 	def __init__(self, data):
             Map.Object.__init__(self, os.path.join('buildings',data[0].replace(' ','_')+'.png'), 1, 1)
-	    self.once, self.eachTurn, self.eachTurnGroup = [compile(data[i+1], 'nofile', 'exec') for i in range(3)]
-	
+	    self.once, self.eachTurn, self.eachTurnGroup, self.lost = [compile(data[i+1].replace('~','\n'), 'nofile', 'exec') for i in range(4)]
     class Pointer(): #Points to another square on the map
         cost = None
         def __init__(self, x, y):
