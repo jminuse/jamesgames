@@ -82,7 +82,9 @@ class Map():
             Map.Object.__init__(self, imageName, 2, 1)
     class Building(Object):
 	def __init__(self, data):
-            Map.Object.__init__(self, os.path.join('buildings',data[0]+'.png'), 1, 1)
+            Map.Object.__init__(self, os.path.join('buildings',data[0].replace(' ','_')+'.png'), 1, 1)
+	    self.once, self.eachTurn, self.eachTurnGroup = [compile(data[i+1], 'nofile', 'exec') for i in range(3)]
+	
     class Pointer(): #Points to another square on the map
         cost = None
         def __init__(self, x, y):
