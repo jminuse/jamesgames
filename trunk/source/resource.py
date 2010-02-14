@@ -3,21 +3,24 @@ from pygame.locals import *
 
 loaded_images = dict()
 
-def image(name, size=None):
+def image(name, size=None, rotation=None):
     """ Load image and return image object"""
-    id = (name,size)
+    id = (name,size,rotation)
     if id in loaded_images:
         return loaded_images[id]
     fullname = os.path.join('data', name)
     try:
-        image = pygame.image.load(fullname)
+        if (name, size, None) in loaded_images: image,rect = loaded_images[(name, size, None)]
+        else: image = pygame.image.load(fullname)
+        
         if size is not None: image = pygame.transform.scale(image, size)
+        if rotation is not None: image = pygame.transform.rotate(image, rotation)
         if image.get_alpha() is None:
             image = image.convert()
         else:
             image = image.convert_alpha()
     except pygame.error, message:
-        print 'Cannot load image:', fullname
+        error_log(message)
         raise SystemExit, message
     loaded_images[id] = image, image.get_rect()
     return loaded_images[id]
@@ -31,7 +34,7 @@ def sound(name):
     try:
         sound = pygame.mixer.Sound(fullname)
     except pygame.error, message:
-        print 'Cannot load sound:', fullname
+        error_log(message)
         raise SystemExit, message
     return sound
 
