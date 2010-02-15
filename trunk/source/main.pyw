@@ -55,6 +55,7 @@ def mainLoop():
         elif mousey > activeScreenSize[1]-20 and offset[1]<world.h*Map.size-activeScreenSize[1]>0: offset[1]+=10
         
         #world.update(time)
+	world.update(time)
         world.display(activeScreen, activeScreenSize, offset)
 	screen.blit(activeScreen, (0,0))
 	pygame.display.flip()
