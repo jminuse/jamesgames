@@ -92,7 +92,7 @@ class Map():
     def __init__(self, w=3, h=3):
         self.w = w; self.h = h
         Map.pixw, Map.pixh = w*Map.size, h*Map.size
-	self.possibleHeroes = [Hero(data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
+	self.possibleHeroes = [Hero(self, data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
 	self.possibleShips = [Battle.Ship(data.splitlines()) for data in open('data/ships.txt').read().split('\n\n') if not data[0].startswith('#')]
 	self.possibleBuildings = [ Map.Building(data.splitlines()) for data in open('data/buildings.txt').read().split('\n\n') if not data[0].startswith('#')]
 	self.players = [ Player(self, "Quack") ]
@@ -101,10 +101,13 @@ class Map():
         self.randomMap()
         self.setBackground()
         self.renderImage()
+    def update(self,time):
+	for player in self.players:
+	    for hero in player.heroes: hero.update(time)
     def display(self, surface, size, offset):
         surface.blit(self.image, (0,0), (offset[0],offset[1],size[0],size[1]) )
 	for player in self.players:
-	    for hero in player.heroes: hero.display(surface,offset)	
+	    for hero in player.heroes: hero.display(surface,offset)
     def setBackground(self):
         self.background = pygame.Surface((Map.pixw,Map.pixh)).convert()
         self.background.fill((5,0,10))
@@ -154,7 +157,7 @@ class Map():
                     if self.grid[x][y].__class__ is not Map.Empty: areaFree = False
             if areaFree: return rx,ry
     def shortestPath(self,x,y,dx,dy):
-	if self.grid[x][y].cost is None or self.grid[dx][dy].cost is None: return None
+	if self.grid[x][y].cost is None or self.grid[dx][dy].cost is None: return None,None
         tested = set()
 	untested = set((x,y))
 	came_from = {}
@@ -165,15 +168,16 @@ class Map():
 	while len(approxCostThroughPoint) > 0:
 	    test = approxCostThroughPoint.pop()
 	    if test == (dx,dy): #Success!
-		path = []
-		while test != (x,y): path.append(test); test = came_from[test]
-		return path
+		path = []; cost = 0
+		while test != (x,y): path.append(test); cost += self.grid[test[0]][test[1]].cost*(1 if (test[0]==came_from[test][0] or test[1]==came_from[test][1]) else 1.41); test = came_from[test]
+		path.reverse()
+		return path, cost
 	    tested.add(test)
 	    for sx in range(max(test[0]-1,0),min(test[0]+2,self.w)):
 		for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested or self.grid[sx][j].cost==None)]:
 		    tentative_cost = optimalCost[test]
 		    if sx==test[0] or sy==test[1]: tentative_cost += self.grid[sx][sy].cost #Not diagonal
-		    else: tentative_cost += self.grid[sx][sy].cost * 2**0.5 #Diagonal
+		    else: tentative_cost += self.grid[sx][sy].cost * 1.41 #Diagonal
 		    isBetter = False
 		    if (sx,sy) not in untested: untested.add((sx,sy)); isBetter = True
 		    elif tentative_cost < optimalCost[(sx,sy)]: isBetter = True
@@ -182,7 +186,7 @@ class Map():
 			optimalCost[ (sx,sy) ] = tentative_cost
 			approxCost[ (sx,sy) ] = distance(sx,sy,dx,dy)
 			approxCostThroughPoint[(sx,sy)] = optimalCost[(sx,sy)]+approxCost[(sx,sy)]
-	return None #If no path is found	    
+	return None,None #If no path is found	    
     class PriorityDict(dict):
 	def __init__(self): self.heap = []
 	def pop(self):
@@ -191,29 +195,37 @@ class Map():
 	    return smallest
     def mouse(self, event, offset):
 	x,y = (event.pos[0]+offset[0])/Map.size, (event.pos[1]+offset[1])/Map.size
-	hero = self.selectedHero
-	path = self.shortestPath(hero.x,hero.y, x,y)
-	if path is not None:
-	    cost = sum([self.grid[p[0]][p[1]].cost for p in path])
-	    print_now(hero.movementPoints)
-	    if hero.movementPoints >= cost:
-		hero.movementPoints -= cost
-		hero.x, hero.y = x,y
+	self.selectedHero.travel(x,y)
 
 class Hero():
     ranks = ('Petty Officer', 'Midshipman', 'Ensign', 'Lieutenant', 'Commander', 'Captain', 'Rear Admiral', 'Vice Admiral', 'Fleet Admiral', 'Grand Admiral', 'Stevenson-Level Awesomeness')
-    def __init__(self, data):
+    def __init__(self, map, data):
+	self.map = map
 	self.name = data[0]
 	self.specialty = data[1]
 	self.attack, self.defense, self.knowledge, self.power, self.speed = [int(i) for i in data[2].split(',')]
         self.image, self.rect = image(os.path.join('heroes',self.name.replace(' ','_')+'.png'))
-	self.x, self.y = 0,0
+	self.x, self.y, self.path = 0,0,None
 	self.movementPoints = self.speed
 	self.fleet = { 'snub': int(data[3]) }
 	self.rankNumber = 0
 	self.experience = 0
     def display(self, surface, offset):
-	surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
+	if self.path is not None:
+	    current, next = self.path[int(self.pathIndex)], self.path[min(int(self.pathIndex+1), len(self.path)-1)]
+	    x = (current[0]+cmp(next[0]-current[0],0)*self.pathIndex%1.0)*Map.size-offset[0]
+	    y = (current[1]+cmp(next[1]-current[1],0)*self.pathIndex%1.0)*Map.size-offset[1]
+	    surface.blit(self.image, (x,y))
+	else: surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
+    def travel(self,x,y):
+	if self.path is not None: return
+	path,cost = self.map.shortestPath(self.x,self.y, x,y)
+	if path is not None and self.movementPoints >= cost:
+	    self.movementPoints -= cost; self.x, self.y = x,y; self.path = path; self.pathIndex = 0.0
+    def update(self,time):
+	if self.path is not None:
+	    self.pathIndex += time/300.0
+	    if self.pathIndex >= len(self.path): self.path = None
 
 class Player():
     def __init__(self, map, type):
