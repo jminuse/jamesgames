@@ -1,8 +1,7 @@
 import sys, random, math, pygame, socket, heapq, os, copy
 from pygame.locals import *
 
-loaded_images = dict()
-
+loaded_images = {}
 def image(name, size=None, rotation=None):
     """ Load image and return image object"""
     id = (name,size,rotation)
@@ -25,17 +24,20 @@ def image(name, size=None, rotation=None):
     loaded_images[id] = image, image.get_rect()
     return loaded_images[id]
 
+loaded_sounds = {}
 def sound(name):
     class NoneSound:
         def play(self): pass
     if not pygame.mixer:
         return NoneSound()
+    if name in loaded_sounds: return loaded_sounds[name]
     fullname = os.path.join('data', name)
     try:
         sound = pygame.mixer.Sound(fullname)
     except pygame.error, message:
         error_log(message)
         raise SystemExit, message
+    loaded_sounds[name] = sound
     return sound
 
 def error_log(s): open('error_log.txt',"a").write(s+'\n')
