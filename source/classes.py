@@ -157,8 +157,7 @@ class Map():
             if test == (dx,dy): #Success!
                 path = []; cost = 0
                 while test != (x,y): path.append(test); cost += self.grid[test[0]][test[1]].travelCost*(1 if (test[0]==came_from[test][0] or test[1]==came_from[test][1]) else 1.41); test = came_from[test]
-                path.reverse()
-                return path, cost
+                path.append((x,y)); path.reverse(); return path, cost
             tested.add(test)
             for sx in range(max(test[0]-1,0),min(test[0]+2,self.w)):
                 for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested or self.grid[sx][j].travelCost==None)]:
@@ -205,25 +204,31 @@ class Hero():
         self.fleet = { 'snub': int(data[3]) }
         self.rankNumber = 0
         self.experience = 0
+	#self.testFlag = True
     def display(self, surface, offset):
         if self.path is not None:
             current, next = self.path[int(self.pathIndex)], self.path[min(int(self.pathIndex+1), len(self.path)-1)]
-            x = (current[0]+cmp(next[0]-current[0],0)*self.pathIndex%1.0)*Map.size-offset[0]
-            y = (current[1]+cmp(next[1]-current[1],0)*self.pathIndex%1.0)*Map.size-offset[1]
+            x = (current[0]+cmp(next[0],current[0])*(self.pathIndex%1.0))*Map.size-offset[0]
+            y = (current[1]+cmp(next[1],current[1])*(self.pathIndex%1.0))*Map.size-offset[1]
             surface.blit(self.image, (x,y))
         else: surface.blit(self.image, (self.x*Map.size-offset[0],self.y*Map.size-offset[1]) )
     def travel(self,x,y):
-        if self.path is not None: return
-        path,cost = self.map.shortestPath(self.x,self.y, x,y)
-        if path is not None and self.movementPoints >= cost:
-            self.movementPoints -= cost; self.x, self.y = x,y; self.path = path; self.pathIndex = 0.0
+        if self.path is not None:
+	    self.movementPoints -= self.travelCost*self.pathIndex/len(self.path);
+	    self.x, self.y = self.path[int(self.pathIndex)]
+	path,self.travelCost = self.map.shortestPath(self.x,self.y, x,y)
+	if path is not None and self.movementPoints >= self.travelCost:
+	    self.path = path; self.pathIndex = 0.0
+	print_now(self.movementPoints)
     angles = { (1,0):0, (1,1):45, (0,1):90, (-1,1):135, (-1,0):180, (-1,-1):225, (0,-1):270, (1,-1):315 } 
     def update(self,time):
         if self.path is not None:
 	    current, next = self.path[int(self.pathIndex)], self.path[min(int(self.pathIndex+1), len(self.path)-1)]
-	    if current!=next: self.image,self.rect = image(self.imageName,None,self.angles[(cmp(next[0],current[0]),-cmp(next[1],current[1]))])
+	    size = (32,28) if next[0]!=current[0] and next[1]!=current[1] else None
+	    if current!=next: self.image,self.rect = image(self.imageName,size,self.angles[(cmp(next[0],current[0]),-cmp(next[1],current[1]))])
             self.pathIndex += time/300.0
             if self.pathIndex >= len(self.path):
+		self.movementPoints -= self.travelCost; self.x, self.y = self.path[-1]
                 self.map.grid[self.path[-1][0]][self.path[-1][1]].action(); self.path = None
 
 class Player():
