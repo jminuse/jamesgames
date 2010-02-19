@@ -87,7 +87,7 @@ class Map():
         self.possibleShips = [Battle.Ship(data.splitlines()) for data in open('data/ships.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.possibleObjects = [ Map.Object(data.splitlines()) for data in open('data/objects.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.players = [ Player(self, "Quack") ]
-        self.whoseTurn = 0
+        self.turns, self.whoseTurn = 0,0
         self.selectedHero = self.players[self.whoseTurn].heroes[0]
         self.randomMap()
         self.setBackground()
@@ -115,7 +115,7 @@ class Map():
             for y,item in enumerate(list):
                 if item.__class__ is not Map.Empty and item.__class__ is not Map.Pointer:
                     self.image.blit(item.image, (x*Map.size, y*Map.size))
-                pygame.draw.rect(self.image, (0,100,0), (x*Map.size, y*Map.size, Map.size, Map.size), 1)
+                #pygame.draw.rect(self.image, (0,100,0), (x*Map.size, y*Map.size, Map.size, Map.size), 1)
                 #if item.__class__ is Map.Pointer:
                 #    pygame.draw.rect(self.image, (0,200,0), (x*Map.size, y*Map.size, Map.size, Map.size), 1)
                 #    pygame.draw.line(self.image, (255,0,0), (x*Map.size+Map.size/2, y*Map.size+Map.size/2), (item.x*Map.size+Map.size/2, item.y*Map.size+Map.size/2), 1)
@@ -179,9 +179,17 @@ class Map():
             smallest = min(self,key=self.__getitem__)
             del self[smallest]
             return smallest
+    def nextTurn(self):
+	self.turns+=1; self.whoseTurn+=1
+	if self.whoseTurn >= len(self.players): self.whoseTurn = 0
+	self.selectedHero = self.players[self.whoseTurn].heroes[0]
+	self.players[self.whoseTurn].nextTurn()
     def mouse(self, event, offset):
         x,y = (event.pos[0]+offset[0])/Map.size, (event.pos[1]+offset[1])/Map.size
         self.selectedHero.travel(x,y)
+    def key(self, event):
+	if event.key==K_SPACE: self.nextTurn()
+	elif event.key==K_TAB: pass
 
 class Hero():
     ranks = ('Petty Officer', 'Midshipman', 'Ensign', 'Lieutenant', 'Commander', 'Captain', 'Rear Admiral', 'Vice Admiral', 'Fleet Admiral', 'Grand Admiral', 'Stevenson-Level Awesomeness')
@@ -190,7 +198,8 @@ class Hero():
         self.name = data[0]
         self.specialty = data[1]
         self.attack, self.defense, self.knowledge, self.power, self.speed = [int(i) for i in data[2].split(',')]
-        self.image, self.rect = image(os.path.join('heroes',self.name.replace(' ','_')+'.png'))
+	self.imageName = os.path.join('heroes',self.name.replace(' ','_')+'.png')
+        self.image, self.rect = image(self.imageName)
         self.x, self.y, self.path = 0,0,None
         self.movementPoints = self.speed
         self.fleet = { 'snub': int(data[3]) }
@@ -208,8 +217,11 @@ class Hero():
         path,cost = self.map.shortestPath(self.x,self.y, x,y)
         if path is not None and self.movementPoints >= cost:
             self.movementPoints -= cost; self.x, self.y = x,y; self.path = path; self.pathIndex = 0.0
+    angles = { (1,0):0, (1,1):45, (0,1):90, (-1,1):135, (-1,0):180, (-1,-1):225, (0,-1):270, (1,-1):315 } 
     def update(self,time):
         if self.path is not None:
+	    current, next = self.path[int(self.pathIndex)], self.path[min(int(self.pathIndex+1), len(self.path)-1)]
+	    if current!=next: self.image,self.rect = image(self.imageName,None,self.angles[(cmp(next[0],current[0]),-cmp(next[1],current[1]))])
             self.pathIndex += time/300.0
             if self.pathIndex >= len(self.path):
                 self.map.grid[self.path[-1][0]][self.path[-1][1]].action(); self.path = None
@@ -222,3 +234,6 @@ class Player():
         self.ore = 0
         self.type = type
         self.heroes = [ map.possibleHeroes.pop() ]
+	self.mapObjects = {}
+    def nextTurn(self):
+	print_now('Next turn')
