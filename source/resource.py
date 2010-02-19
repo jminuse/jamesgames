@@ -48,10 +48,15 @@ def print_now(*args):
 
 os.chdir(sys.argv[0][0:sys.argv[0].rfind("\\")]) #Ensure right folder
 os.chdir('..')
-pygame.init()
+os.environ['SDL_VIDEO_CENTERED'] = '1'
+pygame.display.init() #Initialize display first
 screen = pygame.display.set_mode((700, 500))
 screenSize = screen.get_size()
-pygame.display.set_caption('Peace')
+pygame.display.set_caption('A Few More Heroes')
+pygame.font.init()
+font = pygame.font.Font("data/font.ttf", 70)
+text = font.render('A Few More Heroes', True, (30,50,150) )
+screen.blit(text, text.get_rect(center=screen.get_rect().center))
+pygame.display.flip()
+pygame.init() #Then initialize everything else
 pygame.mouse.set_cursor(*pygame.cursors.broken_x)
-
-font = pygame.font.Font("data/font.ttf", 100)

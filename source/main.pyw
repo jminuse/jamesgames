@@ -20,19 +20,6 @@ for i in range(0):
 	    x,y,dx,dy = path[i][0],path[i][1],path[i+1][0],path[i+1][1]
 	    pygame.draw.line(world.image, (0,2*i,255-2*i), (x*Map.size+Map.size/2,y*Map.size+Map.size/2), (dx*Map.size+Map.size/2,dy*Map.size+Map.size/2) )
 
-
-background = pygame.Surface( (world.w, world.h) ).convert()
-background.fill((0,0,0))
-
-# Display some text
-text = font.render("Hello, Pygame!", True, (0,230,30))
-textpos = text.get_rect()
-textpos.center = background.get_rect().center
-background.blit(text, textpos)
-
-# Blit everything to the screen
-screen.blit(background, (0, 0))
-pygame.display.flip()
 clock = pygame.time.Clock()
 offset = [0,0]
 activeScreen = pygame.Surface((screenSize[0],screenSize[1]-50)).convert()
@@ -43,6 +30,7 @@ screen.fill((50,50,50))
 def mainLoop():
     while True:
         time = clock.tick(40)
+	if not pygame.mouse.get_focused(): time = 0
         if len(pygame.event.get(QUIT)): return
         for event in pygame.event.get(MOUSEBUTTONDOWN):
 	    if event.button==4 and offset[1]>30: offset[1]-=30 #Scroll up
