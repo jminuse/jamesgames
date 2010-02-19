@@ -29,13 +29,15 @@ screen.fill((50,50,50))
 # Event loop
 def mainLoop():
     while True:
-        time = clock.tick(40)
-	if not pygame.mouse.get_focused(): time = 0
-        if len(pygame.event.get(QUIT)): return
-        for event in pygame.event.get(MOUSEBUTTONDOWN):
+        time = clock.tick(30) #Stall until frame rate is at least 40/s, then return time in seconds
+	if not pygame.key.get_focused(): time = 0 #Pause if not the primary window
+        if len(pygame.event.get(QUIT)): return #Quit game on command
+        for event in pygame.event.get(MOUSEBUTTONDOWN): #Get all mouse clicks
 	    if event.button==4 and offset[1]>30: offset[1]-=30 #Scroll up
 	    elif event.button==5 and offset[1]<world.h*Map.size-activeScreenSize[1]-30: offset[1]+=30 #Scroll down
             elif event.button==1: world.mouse(event,offset) #Left click
+	for event in pygame.event.get(KEYDOWN):
+	    world.key(event)
         pygame.event.clear() #Get only what you want, clear the rest
         
         mousex,mousey = pygame.mouse.get_pos()
