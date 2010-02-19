@@ -45,14 +45,16 @@ def mainLoop():
         time = clock.tick(40)
         if len(pygame.event.get(QUIT)): return
         for event in pygame.event.get(MOUSEBUTTONDOWN):
-            world.mouse(event,offset)
+	    if event.button==4 and offset[1]>30: offset[1]-=30 #Scroll up
+	    elif event.button==5 and offset[1]<world.h*Map.size-activeScreenSize[1]-30: offset[1]+=30 #Scroll down
+            elif event.button==1: world.mouse(event,offset) #Left click
         pygame.event.clear() #Get only what you want, clear the rest
         
         mousex,mousey = pygame.mouse.get_pos()
-        if mousex < 20 and offset[0]>0: offset[0]-=10
-        elif mousex > activeScreenSize[0]-20 and offset[0]<world.w*Map.size-activeScreenSize[0]: offset[0]+=10
-        if mousey < 20 and offset[1]>0: offset[1]-=10
-        elif mousey > activeScreenSize[1]-20 and offset[1]<world.h*Map.size-activeScreenSize[1]>0: offset[1]+=10
+        if mousex < 20 and offset[0]>10: offset[0]-=10
+        elif mousex > activeScreenSize[0]-20 and offset[0]<world.w*Map.size-activeScreenSize[0]-10: offset[0]+=10
+        if mousey < 20 and offset[1]>10: offset[1]-=10
+        elif mousey > activeScreenSize[1]-20 and offset[1]<world.h*Map.size-activeScreenSize[1]-10: offset[1]+=10
         
         #world.update(time)
 	world.update(time)
