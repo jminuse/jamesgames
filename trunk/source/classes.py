@@ -63,42 +63,29 @@ class Battle():
 class Map():
     size = 32 #size of a grid square
     class Empty:
-	cost = 1
+	travelCost = 1
 	def action(self): pass
     class Object():
-        cost = None
-        def __init__(self, imageName, w=1, h=1, player=None):
-            self.w, self.h, self.player = w,h,player
-            self.image, self.rect = image(imageName, (w*Map.size, h*Map.size) ) #Image, bounding box
-	def action(self): print_now(self.w)
-    class AsteroidField(Object):
-        cost = 2
-        def __init__(self, imageName='asteroid_tile.png'): Map.Object.__init__(self, imageName, 1, 1)
-    class RadiationZone(Object):
-        cost = 1
-        def __init__(self, imageName='radiation_tile.png'): Map.Object.__init__(self, imageName, 1, 1)
-    class Planet(Object):
-        def __init__(self, imageName='planet1.png'):
-            Map.Object.__init__(self, imageName, 6, 6)
-    class Asteroid(Object):
-        def __init__(self, imageName='asteroid1.png'):
-            Map.Object.__init__(self, imageName, 2, 1)
-    class Building(Object):
-        def __init__(self, data):
-            Map.Object.__init__(self, os.path.join('buildings',data[0].replace(' ','_')+'.png'), 1, 1)
-            self.once, self.eachTurn, self.eachTurnGroup, self.lost = [compile(data[i+1].replace('~','\n'), 'nofile', 'exec') for i in range(4)]
+        def __init__(self, data, player=None):
+            self.w, self.h, self.player = 1,1,player
+            self.image, self.rect = image(os.path.join('buildings',data[0].replace(' ','_')+'.png'), (self.w*Map.size, self.h*Map.size) ) #Image, bounding box
+	    self.travelCost = int(data[1])
+	    if self.travelCost < 0: self.travelCost = None
+            self.once, self.eachTurn, self.eachTurnGroup, self.lost = [compile(data[i+2].replace('~','\n'), 'nofile', 'exec') for i in range(4)]
+	    self.testParam = 0
+	def action(self): print_now(self.testParam)
     class Pointer(): #Points to another square on the map
-        cost = None
+        travelCost = None
         def __init__(self, map, x, y):
             self.x,self.y,self.map = x,y,map
-	def action(self): self.map.grid[self.x][self.y].action()
+	    self.action = self.map.grid[self.x][self.y].action
     
     def __init__(self, w=3, h=3):
         self.w = w; self.h = h
         Map.pixw, Map.pixh = w*Map.size, h*Map.size
         self.possibleHeroes = [Hero(self, data.splitlines()) for data in open('data/heroes.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.possibleShips = [Battle.Ship(data.splitlines()) for data in open('data/ships.txt').read().split('\n\n') if not data[0].startswith('#')]
-        self.possibleBuildings = [ Map.Building(data.splitlines()) for data in open('data/buildings.txt').read().split('\n\n') if not data[0].startswith('#')]
+        self.possibleObjects = [ Map.Object(data.splitlines()) for data in open('data/objects.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.players = [ Player(self, "Quack") ]
         self.whoseTurn = 0
         self.selectedHero = self.players[self.whoseTurn].heroes[0]
@@ -136,13 +123,9 @@ class Map():
     def randomMap(self):
         self.grid = [[Map.Empty() for y in xrange(self.h)] for x in xrange(self.w)]
         self.backtiles = [[Map.Empty() for y in xrange(self.h)] for x in xrange(self.w)]
-        planets = 0; planetCount = 3
-        asteroids = 0; asteroidCount = 100
-        buildings = 0; buildingCount = 20
+	objects, objectCount = 0, 100
         while True:
-            if planets < planetCount: object = Map.Planet(); planets+=1
-            elif asteroids < asteroidCount: object = Map.Asteroid(); asteroids+=1
-            elif buildings < buildingCount: object = copy.copy(random.choice(self.possibleBuildings)); buildings+=1
+            if objects < objectCount: object = copy.copy(random.choice(self.possibleObjects)); objects+=1
             else: break
             freeArea = self.randomFreeArea(object.w, object.h)
             if freeArea is None: break
@@ -161,7 +144,7 @@ class Map():
                     if self.grid[x][y].__class__ is not Map.Empty: areaFree = False
             if areaFree: return rx,ry
     def shortestPath(self,x,y,dx,dy):
-        if self.grid[x][y].cost is None or self.grid[dx][dy].cost is None: return None,None
+        if self.grid[x][y].travelCost is None or self.grid[dx][dy].travelCost is None: return None,None
         tested = set()
         untested = set((x,y))
         came_from = {}
@@ -173,15 +156,15 @@ class Map():
             test = approxCostThroughPoint.pop()
             if test == (dx,dy): #Success!
                 path = []; cost = 0
-                while test != (x,y): path.append(test); cost += self.grid[test[0]][test[1]].cost*(1 if (test[0]==came_from[test][0] or test[1]==came_from[test][1]) else 1.41); test = came_from[test]
+                while test != (x,y): path.append(test); cost += self.grid[test[0]][test[1]].travelCost*(1 if (test[0]==came_from[test][0] or test[1]==came_from[test][1]) else 1.41); test = came_from[test]
                 path.reverse()
                 return path, cost
             tested.add(test)
             for sx in range(max(test[0]-1,0),min(test[0]+2,self.w)):
-                for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested or self.grid[sx][j].cost==None)]:
+                for sy in [j for j in range(max(test[1]-1,0),min(test[1]+2,self.h)) if not ((sx,j)==test or (sx,j) in tested or self.grid[sx][j].travelCost==None)]:
                     tentative_cost = optimalCost[test]
-                    if sx==test[0] or sy==test[1]: tentative_cost += self.grid[sx][sy].cost #Not diagonal
-                    else: tentative_cost += self.grid[sx][sy].cost * 1.41 #Diagonal
+                    if sx==test[0] or sy==test[1]: tentative_cost += self.grid[sx][sy].travelCost #Not diagonal
+                    else: tentative_cost += self.grid[sx][sy].travelCost * 1.41 #Diagonal
                     isBetter = False
                     if (sx,sy) not in untested: untested.add((sx,sy)); isBetter = True
                     elif tentative_cost < optimalCost[(sx,sy)]: isBetter = True
@@ -192,7 +175,6 @@ class Map():
                         approxCostThroughPoint[(sx,sy)] = optimalCost[(sx,sy)]+approxCost[(sx,sy)]
         return None,None #If no path is found       
     class PriorityDict(dict):
-        def __init__(self): self.heap = []
         def pop(self):
             smallest = min(self,key=self.__getitem__)
             del self[smallest]
