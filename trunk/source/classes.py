@@ -87,7 +87,7 @@ class Map():
         self.possibleShips = [Battle.Ship(data.splitlines()) for data in open('data/ships.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.possibleObjects = [ Map.Object(data.splitlines()) for data in open('data/objects.txt').read().split('\n\n') if not data[0].startswith('#')]
         self.players = [ Player(self, "Quack") ]
-        self.turns, self.whoseTurn = 0,0
+        self.turns, self.whoseTurn, self.turnGroupSize = 0,0,7
         self.selectedHero = self.players[self.whoseTurn].heroes[0]
         self.randomMap()
         self.setBackground()
@@ -179,9 +179,12 @@ class Map():
             del self[smallest]
             return smallest
     def nextTurn(self):
-	self.turns+=1; self.whoseTurn+=1
-	if self.whoseTurn >= len(self.players): self.whoseTurn = 0
+	self.whoseTurn+=1
+	if self.whoseTurn >= len(self.players): self.whoseTurn = 0; self.turns+=1
 	self.selectedHero = self.players[self.whoseTurn].heroes[0]
+	if self.turns%self.turnGroupSize == 0:
+	    for player in self.players:
+		for object in player.mapObjects: exec(object.eachTurnGroup)
 	self.players[self.whoseTurn].nextTurn()
     def mouse(self, event, offset):
         x,y = (event.pos[0]+offset[0])/Map.size, (event.pos[1]+offset[1])/Map.size
@@ -219,7 +222,6 @@ class Hero():
 	path,self.travelCost = self.map.shortestPath(self.x,self.y, x,y)
 	if path is not None and self.movementPoints >= self.travelCost:
 	    self.path = path; self.pathIndex = 0.0
-	print_now(self.movementPoints)
     angles = { (1,0):0, (1,1):45, (0,1):90, (-1,1):135, (-1,0):180, (-1,-1):225, (0,-1):270, (1,-1):315 } 
     def update(self,time):
         if self.path is not None:
@@ -239,6 +241,7 @@ class Player():
         self.ore = 0
         self.type = type
         self.heroes = [ map.possibleHeroes.pop() ]
-	self.mapObjects = {}
+	self.mapObjects = set()
+	self.mapObjects.add(copy.copy(map.possibleObjects[0]))
     def nextTurn(self):
-	print_now('Next turn')
+	for object in self.mapObjects: exec(object.eachTurn)
